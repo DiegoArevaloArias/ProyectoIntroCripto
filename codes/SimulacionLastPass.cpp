@@ -7,7 +7,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <utility>
-#include "AEScosas.cpp"
+#include "AES256Implementacion.cpp"
 
 
 using namespace std;
@@ -50,7 +50,7 @@ public:
         vector<unsigned char> salt = generarSalt(16);
 
         // Derivar verificador en bytes PBKDF2
-        vector<unsigned char> verifier = pbkdf2_bytes(password, salt, iterations, key_len);
+        vector<unsigned char> verifier = pbkdf2_sha256_bytes(password, salt, iterations, key_len);
         Account acc;
         acc.verifier = verifier;
         acc.salt = salt;
@@ -118,7 +118,7 @@ public:
         saltServidor = salt_from_server;
 
         // Derivar clave AES localmente PBKDF2 -> 32 bytes
-        vector<unsigned char> derived = pbkdf2_bytes(password, saltServidor, iterations, key_len);
+        vector<unsigned char> derived = pbkdf2_sha256_bytes(password, saltServidor, iterations, key_len);
         claveDerivada.assign(derived.begin(), derived.end());
         // limpiar derived temporal si fuera necesario (depending on pbkdf2_bytes)
         return true;
@@ -138,7 +138,7 @@ public:
         // Para verificar, recalculamos derivedCandidate usando la salt del servidor
         vector<unsigned char> salt = srv.obtenerSalt(nombreUsuario);
         if (salt.empty()) return false;
-        vector<unsigned char> derivedCandidate = pbkdf2_bytes(string(), salt, iterations, claveDerivada.size());
+        vector<unsigned char> derivedCandidate = pbkdf2_sha256_bytes(string(), salt, iterations, claveDerivada.size());
         // Pero en la práctica aquí no tenemos la password; en un flujo realidad el cliente derive con su password.
         // En esta simulación supondremos que el cliente ya tiene claveDerivada correcta y la usa para construir derivedCandidate:
         // -> construire derivedCandidate igual a claveDerivada
@@ -179,7 +179,7 @@ int main(){
 
     // --- Generar salt y clave derivada ---
     vector<unsigned char> salt = generarSalt();
-    string clave_hex = pbkdf2_sha256(password, salt, 10000);
+    string clave_hex = pbkdf2_sha256_hex(password, salt, 10000);
     cout << "Clave derivada (PBKDF2-SHA256): " << clave_hex << endl;
 
 
