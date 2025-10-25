@@ -45,6 +45,20 @@ vector<unsigned char> generarSalt(size_t len = 16) {
     return salt;
 }
 
+Block openssl_aes256_ecb_encrypt_block(const Block &plain16, const Key &key32){
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) throw runtime_error("EVP_CIPHER_CTX_new failed");
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_256_ecb(), NULL, key32.data(), NULL) != 1)
+        throw runtime_error("EVP_EncryptInit_ex failed");
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
+    unsigned char out[32]; int outlen=0, tmplen=0;
+    if (EVP_EncryptUpdate(ctx, out, &outlen, plain16.data(), 16) != 1) throw runtime_error("EVP_EncryptUpdate failed");
+    if (EVP_EncryptFinal_ex(ctx, out + outlen, &tmplen) != 1) throw runtime_error("EVP_EncryptFinal_ex failed");
+    EVP_CIPHER_CTX_free(ctx);
+    Block outb(16); memcpy(outb.data(), out, 16);
+    return outb;
+}
+
 // Función PBKDF2-SHA256 
 // Recibe password, salt y número de iteraciones
 // Devuelve la clave derivada en hex (para AES o verificación)
@@ -69,8 +83,7 @@ string pbkdf2_sha256_hex(const string &password,const vector<unsigned char> &sal
     return binAHex(pbkdf2_sha256_bytes(password,salt,iterations));
 }
 
-
-//sbox usada para trnsformaciones de bytes
+// S-box
 const Byte sbox[256] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
     0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
@@ -106,13 +119,28 @@ const Byte sbox[256] = {
     0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
-
-
-//  Funciones principales de AES-256 
+// Inverse S-box
+const Byte invSbox[256] = {
+    0x52,0x09,0x6A,0xD5,0x30,0x36,0xA5,0x38,0xBF,0x40,0xA3,0x9E,0x81,0xF3,0xD7,0xFB,
+    0x7C,0xE3,0x39,0x82,0x9B,0x2F,0xFF,0x87,0x34,0x8E,0x43,0x44,0xC4,0xDE,0xE9,0xCB,
+    0x54,0x7B,0x94,0x32,0xA6,0xC2,0x23,0x3D,0xEE,0x4C,0x95,0x0B,0x42,0xFA,0xC3,0x4E,
+    0x08,0x2E,0xA1,0x66,0x28,0xD9,0x24,0xB2,0x76,0x5B,0xA2,0x49,0x6D,0x8B,0xD1,0x25,
+    0x72,0xF8,0xF6,0x64,0x86,0x68,0x98,0x16,0xD4,0xA4,0x5C,0xCC,0x5D,0x65,0xB6,0x92,
+    0x6C,0x70,0x48,0x50,0xFD,0xED,0xB9,0xDA,0x5E,0x15,0x46,0x57,0xA7,0x8D,0x9D,0x84,
+    0x90,0xD8,0xAB,0x00,0x8C,0xBC,0xD3,0x0A,0xF7,0xE4,0x58,0x05,0xB8,0xB3,0x45,0x06,
+    0xD0,0x2C,0x1E,0x8F,0xCA,0x3F,0x0F,0x02,0xC1,0xAF,0xBD,0x03,0x01,0x13,0x8A,0x6B,
+    0x3A,0x91,0x11,0x41,0x4F,0x67,0xDC,0xEA,0x97,0xF2,0xCF,0xCE,0xF0,0xB4,0xE6,0x73,
+    0x96,0xAC,0x74,0x22,0xE7,0xAD,0x35,0x85,0xE2,0xF9,0x37,0xE8,0x1C,0x75,0xDF,0x6E,
+    0x47,0xF1,0x1A,0x71,0x1D,0x29,0xC5,0x89,0x6F,0xB7,0x62,0x0E,0xAA,0x18,0xBE,0x1B,
+    0xFC,0x56,0x3E,0x4B,0xC6,0xD2,0x79,0x20,0x9A,0xDB,0xC0,0xFE,0x78,0xCD,0x5A,0xF4,
+    0x1F,0xDD,0xA8,0x33,0x88,0x07,0xC7,0x31,0xB1,0x12,0x10,0x59,0x27,0x80,0xEC,0x5F,
+    0x60,0x51,0x7F,0xA9,0x19,0xB5,0x4A,0x0D,0x2D,0xE5,0x7A,0x9F,0x93,0xC9,0x9C,0xEF,
+    0xA0,0xE0,0x3B,0x4D,0xAE,0x2A,0xF5,0xB0,0xC8,0xEB,0xBB,0x3C,0x83,0x53,0x99,0x61,
+    0x17,0x2B,0x04,0x7E,0xBA,0x77,0xD6,0x26,0xE1,0x69,0x14,0x63,0x55,0x21,0x0C,0x7D
+};
 
 // Expandir clave maestra en claves de ronda
 // Expansión de clave para AES-256 (Nk=8, Nr=14)
-
 RoundKeys keySchedule(const Key &masterKey) {
     const int Nk = 8;   // 32 bytes / 4 = 8 palabras
     const int Nb = 4;   // columnas
@@ -188,8 +216,6 @@ RoundKeys keySchedule(const Key &masterKey) {
     return roundKeys;
 }
 
-
-
 // Divide el mensaje en bloques de 16 bytes y aplica padding PKCS#7
 vector<Block> divideIntoBlocks(const string &mensaje) {
     const size_t blockSize = 16;
@@ -244,72 +270,98 @@ Block subBytes(const Block &state) {
     }
     return nuevoState;
 }
-
-Block shiftRows(const Block &state) {
+Block invSubBytes(const Block &state) {
+    if (state.size() != 16) throw runtime_error("invSubBytes: state must be 16 bytes");
     Block nuevoState(16);
-    //Fila 1
-    nuevoState[0]=state[0];
-    nuevoState[1]=state[1];
-    nuevoState[2]=state[2];
-    nuevoState[3]=state[3];
-
-    //Fila 2
-    nuevoState[4]=state[5];
-    nuevoState[5]=state[6];
-    nuevoState[6]=state[7];
-    nuevoState[7]=state[4];
-
-    //Fila 3
-    nuevoState[8]=state[10];
-    nuevoState[9]=state[11];
-    nuevoState[10]=state[8];
-    nuevoState[11]=state[9];
-
-
-    //Fila 4
-    nuevoState[12]=state[15];
-    nuevoState[13]=state[12];
-    nuevoState[14]=state[13];
-    nuevoState[15]=state[14];
-
+    for (size_t i = 0; i < 16; ++i) {
+        nuevoState[i] = invSbox[state[i]];
+    }
     return nuevoState;
 }
 
+// ShiftRows: implementado con el esquema estándar:
+// state index: row + 4*col  (state[0]=r0c0, state[1]=r1c0, state[2]=r2c0, state[3]=r3c0, state[4]=r0c1,...)
+Block shiftRows(const Block &s) {
+    Block r(16);
+    // Para cada fila r_i (0..3) desplazamos a la izquierda r_i posiciones
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            int srcCol = (col + row) % 4; // shift left by row
+            r[row + 4*col] = s[row + 4*srcCol];
+        }
+    }
+    return r;
+}
 
+// inverse ShiftRows
+Block invShiftRows(const Block &s) {
+    Block r(16);
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            int srcCol = (col - row + 4) % 4; // shift right by row
+            r[row + 4*col] = s[row + 4*srcCol];
+        }
+    }
+    return r;
+}
 
 inline Byte gmul2(Byte b) {
-    return (b < 0x80) ? (b << 1) : ((b << 1) ^ 0x1b);
+    return (Byte)((b << 1) ^ ((b & 0x80) ? 0x1b : 0x00));
 }
 inline Byte gmul3(Byte b) {
     return gmul2(b) ^ b;
 }
 
-Block mixColumns(const Block &state) {
-    Block nuevoState(16);
-    for (int i = 0; i < 4; i++)
-    {
-        Byte s0=state[i];
-        Byte s1=state[i+4];
-        Byte s2=state[i+8];
-        Byte s3=state[i+12];
+Block mixColumns(const Block &s) {
+    Block r(16);
+    // Para cada columna c
+    for (int c = 0; c < 4; ++c) {
+        Byte s0 = s[0 + 4*c];
+        Byte s1 = s[1 + 4*c];
+        Byte s2 = s[2 + 4*c];
+        Byte s3 = s[3 + 4*c];
 
-
-        nuevoState[i]=gmul2(s0)^gmul3(s1)^s2^s3; //s0' transformacion
-        nuevoState[i+4]=s0^gmul2(s1)^gmul3(s2)^s3; //s1' transformacion
-        nuevoState[i+8]=s0^s1^gmul2(s2)^gmul3(s3);   //s2' transformacion
-        nuevoState[i+12]=gmul3(s0)^s1^s2^gmul2(s3);   //s3' transformacion
-        /*  
-s0' = (2 • s0) ⊕ (3 • s1) ⊕ s2 ⊕ s3
-s1' = s0 ⊕ (2 • s1) ⊕ (3 • s2) ⊕ s3
-s2' = s0 ⊕ s1 ⊕ (2 • s2) ⊕ (3 • s3)
-s3' = (3 • s0) ⊕ s1 ⊕ s2 ⊕ (2 • s3)
-        */
-
-
+        r[0 + 4*c] = (Byte)(gmul2(s0) ^ gmul3(s1) ^ s2 ^ s3);
+        r[1 + 4*c] = (Byte)(s0 ^ gmul2(s1) ^ gmul3(s2) ^ s3);
+        r[2 + 4*c] = (Byte)(s0 ^ s1 ^ gmul2(s2) ^ gmul3(s3));
+        r[3 + 4*c] = (Byte)(gmul3(s0) ^ s1 ^ s2 ^ gmul2(s3));
     }
-    
+    return r;
+}
 
-    return nuevoState;
+inline Byte gmul4(Byte b) {
+    return gmul2(gmul2(b));
+}
+inline Byte gmul8(Byte b) { 
+    return gmul2(gmul4(b));
+}
+inline Byte gmul9(Byte b)  {
+    return (Byte)(gmul8(b) ^ b);
+}
+inline Byte gmul11(Byte b) {
+    return (Byte)(gmul8(b) ^ gmul2(b) ^ b); 
+}
+inline Byte gmul13(Byte b) { 
+    return (Byte)(gmul8(b) ^ gmul4(b) ^ b); 
+}
+inline Byte gmul14(Byte b) { 
+    return (Byte)(gmul8(b) ^ gmul4(b) ^ gmul2(b)); 
+}
+
+Block invMixColumns(const Block &s) {
+    Block r(16);
+    for (int c = 0; c < 4; ++c) {
+        Byte s0 = s[0 + 4*c];
+        Byte s1 = s[1 + 4*c];
+        Byte s2 = s[2 + 4*c];
+        Byte s3 = s[3 + 4*c];
+
+        r[0 + 4*c] = (Byte)(gmul14(s0) ^ gmul11(s1) ^ gmul13(s2) ^ gmul9(s3));
+        r[1 + 4*c] = (Byte)(gmul9(s0)  ^ gmul14(s1) ^ gmul11(s2) ^ gmul13(s3));
+        r[2 + 4*c] = (Byte)(gmul13(s0) ^ gmul9(s1)  ^ gmul14(s2) ^ gmul11(s3));
+        r[3 + 4*c] = (Byte)(gmul11(s0) ^ gmul13(s1) ^ gmul9(s2)  ^ gmul14(s3));
+    }
+    return r;
 }
 
 // Convierte una matriz 4x4 (state) en bytes lineales
@@ -317,98 +369,45 @@ Block convertMatrixToBytes(const Block &state) {
     return state;
 }
 
-
-
-
 // --- Función AES-256 completa ---
-string AES256Encriptar(const string &mensaje, const Key &clave) {
+// Nota: este cifrado aplica PKCS#7 padding en divideIntoBlocks
+vector<unsigned char> AES256Encriptar(const string &mensaje, const Key &clave) {
     // 1. Expandir clave
     RoundKeys roundKeys = keySchedule(clave);
 
-    // 2. Dividir mensaje en bloques
+    // 2. Dividir mensaje en bloques (con PKCS#7)
     vector<Block> bloques = divideIntoBlocks(mensaje);
 
-    // 3. Inicializar resultado
-    string cipherText;
+    // 3. Inicializar resultado binario
+    vector<unsigned char> cipherBytes;
+    cipherBytes.reserve(bloques.size() * 16);
 
     // 4. Encriptar cada bloque
     for (Block &block : bloques) {
-
-        Block state = addRoundKey(block,roundKeys[0]);
+        Block state = addRoundKey(block, roundKeys[0]);
 
         // 13 rondas intermedias
         for (int i = 1; i <= 13; ++i) {
-
             state = subBytes(state);
             state = shiftRows(state);
             state = mixColumns(state);
             state = addRoundKey(state, roundKeys[i]);
-
         }
 
         // Ronda final (sin mixColumns)
         state = subBytes(state);
         state = shiftRows(state);
-        state = addRoundKey(state,roundKeys[14]);
+        state = addRoundKey(state, roundKeys[14]);
 
-        // Convertir state a bytes y concatenar
-        Block cipherBlock = convertMatrixToBytes(state);
-        cipherText.append(cipherBlock.begin(), cipherBlock.end());
+        // Añadir el bloque cifrado al vector de salida
+        for (Byte b : state) cipherBytes.push_back(b);
     }
 
-    return cipherText;
+    return cipherBytes;
 }
 
-bool constant_time_equal(const vector<unsigned char>& a, const vector<unsigned char>& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char diff = 0;
-    for (size_t i = 0; i < a.size(); ++i) diff |= a[i] ^ b[i];
-    return diff == 0;
-}
-
-string encryptToHex(const string &plaintext, const Key &key) {
-    string bin = AES256Encriptar(plaintext, key); // tu función existente que devuelve bytes binarios en string
-    vector<unsigned char> vbin(bin.begin(), bin.end());
-    return binAHex(vbin);
-}
-
-//AES256Encriptar recibe la cadena y la clave de encriptado, retorna la cadena encriptada
-
-
-
-
-
-
-
-
-
-
-//AES256Desencriptar recibe la cadena y la clave de encriptado, retorna la cadena desencriptada
-
-
-
-const Byte invSbox[256] = {
-    0x52,0x09,0x6A,0xD5,0x30,0x36,0xA5,0x38,0xBF,0x40,0xA3,0x9E,0x81,0xF3,0xD7,0xFB,
-    0x7C,0xE3,0x39,0x82,0x9B,0x2F,0xFF,0x87,0x34,0x8E,0x43,0x44,0xC4,0xDE,0xE9,0xCB,
-    0x54,0x7B,0x94,0x32,0xA6,0xC2,0x23,0x3D,0xEE,0x4C,0x95,0x0B,0x42,0xFA,0xC3,0x4E,
-    0x08,0x2E,0xA1,0x66,0x28,0xD9,0x24,0xB2,0x76,0x5B,0xA2,0x49,0x6D,0x8B,0xD1,0x25,
-    0x72,0xF8,0xF6,0x64,0x86,0x68,0x98,0x16,0xD4,0xA4,0x5C,0xCC,0x5D,0x65,0xB6,0x92,
-    0x6C,0x70,0x48,0x50,0xFD,0xED,0xB9,0xDA,0x5E,0x15,0x46,0x57,0xA7,0x8D,0x9D,0x84,
-    0x90,0xD8,0xAB,0x00,0x8C,0xBC,0xD3,0x0A,0xF7,0xE4,0x58,0x05,0xB8,0xB3,0x45,0x06,
-    0xD0,0x2C,0x1E,0x8F,0xCA,0x3F,0x0F,0x02,0xC1,0xAF,0xBD,0x03,0x01,0x13,0x8A,0x6B,
-    0x3A,0x91,0x11,0x41,0x4F,0x67,0xDC,0xEA,0x97,0xF2,0xCF,0xCE,0xF0,0xB4,0xE6,0x73,
-    0x96,0xAC,0x74,0x22,0xE7,0xAD,0x35,0x85,0xE2,0xF9,0x37,0xE8,0x1C,0x75,0xDF,0x6E,
-    0x47,0xF1,0x1A,0x71,0x1D,0x29,0xC5,0x89,0x6F,0xB7,0x62,0x0E,0xAA,0x18,0xBE,0x1B,
-    0xFC,0x56,0x3E,0x4B,0xC6,0xD2,0x79,0x20,0x9A,0xDB,0xC0,0xFE,0x78,0xCD,0x5A,0xF4,
-    0x1F,0xDD,0xA8,0x33,0x88,0x07,0xC7,0x31,0xB1,0x12,0x10,0x59,0x27,0x80,0xEC,0x5F,
-    0x60,0x51,0x7F,0xA9,0x19,0xB5,0x4A,0x0D,0x2D,0xE5,0x7A,0x9F,0x93,0xC9,0x9C,0xEF,
-    0xA0,0xE0,0x3B,0x4D,0xAE,0x2A,0xF5,0xB0,0xC8,0xEB,0xBB,0x3C,0x83,0x53,0x99,0x61,
-    0x17,0x2B,0x04,0x7E,0xBA,0x77,0xD6,0x26,0xE1,0x69,0x14,0x63,0x55,0x21,0x0C,0x7D
-};
-
-// Conversión y utilidades
 // Convierte el texto cifrado en bloques de 16 bytes
-vector<Block> splitCiphertextBlocks(const string &ciphertext) {
+vector<Block> splitCiphertextBlocks(const vector<unsigned char> &ciphertext) {
     vector<Block> bloques;
     if (ciphertext.size() % 16 != 0) {
         throw runtime_error("Ciphertext length not multiple of 16 bytes");
@@ -421,7 +420,6 @@ vector<Block> splitCiphertextBlocks(const string &ciphertext) {
     return bloques;
 }
 
-
 // Convierte un bloque de 16 bytes a std::string
 string blockToString(const Block &bloque) {
     string s;
@@ -431,12 +429,11 @@ string blockToString(const Block &bloque) {
     return s;
 }
 
-
 // Elimina padding PKCS#7 del texto
 string quitarPadding(const string &texto) {
     if (texto.empty()) return texto;
 
-    unsigned char pad = texto.back();
+    unsigned char pad = static_cast<unsigned char>(texto.back());
 
     // Validar padding
     if (pad == 0 || pad > 16) {
@@ -458,108 +455,16 @@ string quitarPadding(const string &texto) {
     return texto.substr(0, texto.size() - pad);
 }
 
-// Operaciones principales
-Block invSubBytes(const Block &state){
-
-    Block nuevoState(state.size());
-    for(int i=0; i<state.size(); i++){
-        nuevoState[i]=invSbox[state[i]];
-    }
-    return nuevoState;
-}
-
-
-Block invShiftRows(const Block &state){
-
-    Block nuevoState(16);
-    //Fila 1
-    nuevoState[0]=state[0];
-    nuevoState[1]=state[1];
-    nuevoState[2]=state[2];
-    nuevoState[3]=state[3];
-
-    //Fila 2
-    nuevoState[4]=state[7];
-    nuevoState[5]=state[4];
-    nuevoState[6]=state[5];
-    nuevoState[7]=state[6];
-
-    //Fila 3
-    nuevoState[8]=state[10];
-    nuevoState[9]=state[11];
-    nuevoState[10]=state[8];
-    nuevoState[11]=state[9];
-
-
-    //Fila 4
-    nuevoState[12]=state[13];
-    nuevoState[13]=state[14];
-    nuevoState[14]=state[15];
-    nuevoState[15]=state[12];
-
-    return nuevoState;
-
-}
-
-
-inline Byte gmul4(Byte b) {
-    return gmul2(gmul2(b));
-}
-inline Byte gmul8(Byte b) { 
-    return gmul2(gmul4(b));
-}
-
-// 9 = 8 + 1
-inline Byte gmul9(Byte b)  {
-    return gmul8(b) ^ b;
-}
-// 11 (0x0b) = 8 + 2 + 1
-inline Byte gmul11(Byte b) {
-    return gmul8(b) ^ gmul2(b) ^ b; 
-}
-// 13 (0x0d) = 8 + 4 + 1
-inline Byte gmul13(Byte b) { 
-    return gmul8(b) ^ gmul4(b) ^ b; 
-}
-// 14 (0x0e) = 8 + 4 + 2
-inline Byte gmul14(Byte b) { 
-    return gmul8(b) ^ gmul4(b) ^ gmul2(b); 
-}
-
-Block invMixColumns(const Block &state) {
-    Block nuevoState(16);
-    for (int i = 0; i < 4; ++i) {
-        Byte s0 = state[i];
-        Byte s1 = state[i + 4];
-        Byte s2 = state[i + 8];
-        Byte s3 = state[i + 12];
-
-        // Aplicando la matriz 0e 0b 0d 09 (columna a columna)
-        nuevoState[i]  = gmul14(s0)^gmul11(s1)^gmul13(s2)^gmul9(s3);
-        nuevoState[i+4]= gmul9(s0)^gmul14(s1)^gmul11(s2)^gmul13(s3);
-        nuevoState[i+8]= gmul13(s0)^gmul9(s1)^gmul14(s2)^gmul11(s3);
-        nuevoState[i+12]= gmul11(s0)^gmul13(s1)^gmul9(s2)^gmul14(s3);
-    }
-    return nuevoState;
-}
-
-string AES256Desencriptar(const string &mensajeEncriptado, const Key &clave) {
-    // 1. Preparar
-    //  - Convertir el texto cifrado en bloques de 16 bytes
-    //  - Expandir la clave (key schedule) para obtener todas las subclaves
-    //  - Inicializar estructuras de trabajo
-
+// AES Decrypt (inverso)
+string AES256Desencriptar(const vector<unsigned char> &mensajeEncriptado, const Key &clave) {
+    // 1. Preparar: convertir ciphertext en bloques y expandir clave
     vector<Block> bloques = splitCiphertextBlocks(mensajeEncriptado);
     RoundKeys subclaves = keySchedule(clave);
 
     string resultado;
 
     // 2. Procesar cada bloque
-    for (Block &bloque : bloques) {
-
-        //  Etapas inversas del AES 
-        // recordando que AES-256 tiene 14 rondas
-
+    for (Block bloque : bloques) {
         // 2.1 AddRoundKey última subclave
         bloque = addRoundKey(bloque, subclaves[14]);
 
@@ -580,13 +485,11 @@ string AES256Desencriptar(const string &mensajeEncriptado, const Key &clave) {
         resultado += blockToString(bloque);
     }
 
-    // 3. Quitar padding (PKCS#7 u otro)
+    // 3. Quitar padding (PKCS#7)
     resultado = quitarPadding(resultado);
 
     return resultado;
 }
-
-
 
 //Funciones para Simulacion LASTPass
 bool constant_time_equal(const vector<unsigned char>& a, const vector<unsigned char>& b) {
@@ -597,10 +500,95 @@ bool constant_time_equal(const vector<unsigned char>& a, const vector<unsigned c
 }
 
 string encryptToHex(const string &plaintext, const Key &key) {
-    string bin = AES256Encriptar(plaintext, key); // tu función existente que devuelve bytes binarios en string
-    vector<unsigned char> vbin(bin.begin(), bin.end());
-    return binAHex(vbin);
+    vector<unsigned char> bin = AES256Encriptar(plaintext, key);
+    return binAHex(bin);
 }
 
+string hexStr(const vector<unsigned char> &data) {
+    stringstream ss;
+    ss << hex << setfill('0');
+    for (unsigned char b : data)
+        ss << setw(2) << (int)b;
+    return ss.str();
+}
 
+// Pruebas
+bool testCifradoBasico() {
+    string key = "12345678901234567890123456789012"; // 32 bytes
+    string plain = "HolaAES256Testa esrto es una pr"; // 14 bytes
+
+    vector<unsigned char> enc = AES256Encriptar(plain, vector<unsigned char>(key.begin(), key.end()));
+    string dec = AES256Desencriptar(enc, vector<unsigned char>(key.begin(), key.end()));
+
+    cout << "Prueba 1 | Texto original:  " << plain << endl;
+    cout << "Prueba 1 | Descifrado:      " << dec << endl;
+
+    return (plain == dec);
+}
+static void printState(const string &title, const Block &b) {
+    cout << setw(20) << left << title << ": " << hexStr(b) << endl;
+}
+
+Block AES256EncriptarBloques_Instrumentado(const Block &plain, const Key &key) {
+    const int Nr = 14;
+    vector<Block> roundKeys = keySchedule(key);
+
+    Block state = plain;
+    cout << "\n===== AES-256 Instrumentado =====" << endl;
+    printState("Input", state);
+
+    state = addRoundKey(state, roundKeys[0]);
+    printState("AddRoundKey[0]", state);
+
+    for (int r = 1; r < Nr; r++) {
+        cout << "\n-- Ronda " << r << " --" << endl;
+        state = subBytes(state);
+        printState("SubBytes", state);
+        state = shiftRows(state);
+        printState("ShiftRows", state);
+        state = mixColumns(state);
+        printState("MixColumns", state);
+        state = addRoundKey(state, roundKeys[r]);
+        printState("AddRoundKey", state);
+    }
+
+    cout << "\n-- Ronda Final 14 --" << endl;
+    state = subBytes(state);
+    printState("SubBytes", state);
+    state = shiftRows(state);
+    printState("ShiftRows", state);
+    state = addRoundKey(state, roundKeys[Nr]);
+    printState("AddRoundKey[14]", state);
+
+    cout << "===== Fin Instrumentado =====\n";
+    return state;
+}
+bool testNIST_Compare() {
+    Key key = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+
+    Block plain = {
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    cout << "\n========= COMPARACIÓN NIST =========\n";
+    Block encryptedInstrumented = AES256EncriptarBloques_Instrumentado(plain, key);
+    Block encryptedOpenSSL = openssl_aes256_ecb_encrypt_block(plain, key);
+
+    cout << "\nResultado Final (tuyo):   " << hexStr(encryptedInstrumented) << endl;
+    cout << "Resultado OpenSSL:        " << hexStr(encryptedOpenSSL) << endl;
+
+    if (encryptedInstrumented == encryptedOpenSSL) {
+        cout << "\n ¡Cifrado correcto contra NIST/OpenSSL!\n";
+        return true;
+    } else {
+        cout << "\n Divergencia detectada. Revisar dump arriba.\n";
+        return false;
+    }
+}
 
