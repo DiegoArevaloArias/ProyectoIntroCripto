@@ -1,0 +1,7 @@
+Compilar: 
+
+g++ -std=c++17 -O2 main.cpp pbkdf2.cpp AES256Implementacion.cpp -o output/main.exe -lssl -lcrypto
+
+Ejecutar:
+
+output/main.exe
