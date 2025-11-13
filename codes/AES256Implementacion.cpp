@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
+#include "pbkdf2.h"
 
 ///Incluir el pbkdf2 de Diego
 
@@ -28,23 +29,8 @@ vector<Byte> hexABytes(const string &hex) {
     return bytes;
 }
 
-//  Convierte bytes a string hex 
-string binAHex(const vector<unsigned char> &data) {
-    stringstream ss;
-    ss<<hex<<setfill('0');
-    for (unsigned char c : data){
-        ss << setw(2) << (int)c;
-    }
-    return ss.str();
-}
 
-//  Genera salt aleatorio 
-vector<unsigned char> generarSalt(size_t len = 16) {
-    vector<unsigned char> salt(len);
-    RAND_bytes(salt.data(), (int)len);
-    return salt;
-}
-
+// openssl helper (sólo para comparar/test)
 Block openssl_aes256_ecb_encrypt_block(const Block &plain16, const Key &key32){
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) throw runtime_error("EVP_CIPHER_CTX_new failed");
@@ -59,29 +45,6 @@ Block openssl_aes256_ecb_encrypt_block(const Block &plain16, const Key &key32){
     return outb;
 }
 
-// Función PBKDF2-SHA256 
-// Recibe password, salt y número de iteraciones
-// Devuelve la clave derivada en hex (para AES o verificación)
-// Actualmente se usa la implementacion de la libreria de openssl
-
-
-Key pbkdf2_sha256_bytes(const string &password,const vector<unsigned char> &salt,int iterations, size_t key_len = 32) // 32 bytes = 256 bits
-{
-    vector<unsigned char> key(key_len);
-
-    int res = PKCS5_PBKDF2_HMAC(password.c_str(), (int)password.size(),salt.data(), (int)salt.size(),iterations, EVP_sha256(),(int)key_len, key.data());
-
-    if (res != 1) {
-        cerr << "Error en PBKDF2 derivation\n";
-        throw runtime_error("PBKDF2 failed");
-    }
-
-    return key;
-}
-
-string pbkdf2_sha256_hex(const string &password,const vector<unsigned char> &salt,int iterations, size_t key_len = 32){
-    return binAHex(pbkdf2_sha256_bytes(password,salt,iterations));
-}
 
 // S-box
 const Byte sbox[256] = {
@@ -591,4 +554,3 @@ bool testNIST_Compare() {
         return false;
     }
 }
-
