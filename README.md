@@ -84,9 +84,36 @@ Se estudiarán diferentes técnicas de ataque y su impacto:
 
 ##  Archivos
 
-- Codes: Contiene.....
-- Pruebas....
-- Metricas....
+- Codes:
+Iplementaciones en c++
+  - AES256Implementacion.cpp
+  - SimulacionLastPass.cpp
+  - argon2_simplified.cpp
+  - blake2b.cpp
+  - pbkdf2.cpp
+  - main.cpp
+Headers
+  - AES256Implementacion.h
+  - argon2_simplified.h
+  - blake2b.h
+  - pbkdf2.h
+
+Cuadernos en python
+  - scrypt.ipynb
+  - bcrypt.ipynb
+
+
+## Como compilar y ejecutar
+Compilar: 
+```
+g++ -std=c++17 -O2 main.cpp pbkdf2.cpp AES256Implementacion.cpp -o output/main.exe -lssl -lcrypto
+```
+Ejecutar:
+```
+output/main.exe
+```
+
+  
 
 
 ---
