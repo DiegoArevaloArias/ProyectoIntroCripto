@@ -1,36 +1,21 @@
-// main.cpp
 #include <iostream>
-#include <string>
-#include "pbkdf2.h"
-#include "AES256Implementacion.h"
+#include <vector>
+#include <iomanip>
+#include "argon2_simplified.h"
 
-using namespace std;
-
-int main() {
-    // Parámetros
-    string password = "MiPasswordSegura123!";
-    int iterations = 100000;
-    size_t key_len = 32;
-
-    // 1) generar salt (aleatorio) — guardarlo junto al ciphertext en producción
-    vector<unsigned char> salt = generarSalt(16);
-
-    // 2) derivar clave con TU PBKDF2 (implementada en pbkdf2.cpp)
-    vector<unsigned char> derived = pbkdf2_sha256_bytes(password, salt, iterations, key_len);
-
-    // 3) convertir a Key (alias usado por AES)
-    Key aes_key(derived.begin(), derived.end());
-
-    // 4) probar cifrado/descifrado
-    string plaintext = "Hola mundo AES con PBKDF2";
-    vector<unsigned char> ciphertext = AES256Encriptar(plaintext, aes_key);
-
-    cout << "Salt (hex): " << binAHex(salt) << endl;
-    cout << "Derived key (hex): " << binAHex(derived) << endl;
-    cout << "Ciphertext (hex): " << binAHex(ciphertext) << endl;
-
-    string recovered = AES256Desencriptar(ciphertext, aes_key);
-    cout << "Recovered: " << recovered << endl;
-
-    return 0;
+static std::string to_hex(const std::vector<uint8_t> &v) {
+  std::ostringstream os;
+  for (auto b: v) os << std::hex << std::setw(2) << std::setfill('0') <<
+  (int)b;
+  return os.str();
+}
+int main(int argc, char **argv) {
+  std::string pwd = "password123";
+  std::vector<uint8_t> salt = {0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,0x01,
+  0x23,0x45,0x67,0x89,0xab,0xcd,0xef};
+  Argon2Params p; p.time_cost = 2; p.mem_kib = 32768; p.parallelism = 2;
+  p.tag_len = 32;
+  auto tag = argon2_hash(pwd, salt, p);
+  std::cout << "Argon2-simplified tag: " << to_hex(tag) << std::endl;
+  return 0;
 }
