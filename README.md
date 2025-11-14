@@ -14,10 +14,7 @@
 El objetivo de este proyecto es estudiar e implementar las diferentes formas en las cuales se manejan contraseñas y claves en entornos industriales.  
 Se analizarán tanto mecanismos de almacenamiento (hashing con *salt* y *pepper*, gestores de contraseñas, bases de datos de credenciales) como mecanismos de gestión y uso.
 
-Se cubrirán ejemplos reales como:
-- Proveedores de correo y servicios web (Google, Microsoft, etc.)
-- Aplicaciones bancarias y comercio electrónico
-- Gestores de contraseñas (LastPass)
+Se cubrirá el ejemplo real del gestor de contraseñas lastpass
 
 
 ---
@@ -30,13 +27,6 @@ Se desarrollarán simulaciones y prototipos que reproduzcan las técnicas más c
   Hashing de contraseñas (PBKDF2, bcrypt, scrypt, Argon2), con *salt* y *pepper*.  
   Gestión de parámetros: coste, iteraciones, memoria y evaluación del coste computacional.
 
-- **Gestión de secretos:**  
-  Simulación con sistemas tipo Vault/KMS: almacenamiento, rotación automática y políticas de acceso.
-
-- **Autenticación:**  
-  Flujos básicos de SSO/OAuth y MFA (TOTP), analizando impacto en seguridad y usabilidad.
-
->  *Posibilidad de ampliación según tiempos del proyecto*
 
 ---
 
@@ -60,14 +50,10 @@ Se estudiarán diferentes técnicas de ataque y su impacto:
 ##  Resultados Esperados / Entregables
 
 - Implementaciones de los esquemas de manejo de contraseñas.
-- Informe experimental con métricas:
+- Informe experimental y explicativo con métricas:
   - Tiempos de cracking por algoritmo
   - Comparativa coste/seguridad
   - Buenas y malas configuraciones
-- Recomendaciones prácticas para la industria:
-  - Políticas de contraseñas
-  - Rotación de claves
-  - Parámetros mínimos recomendados
 
 ---
 
