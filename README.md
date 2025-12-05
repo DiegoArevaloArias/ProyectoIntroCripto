@@ -40,8 +40,6 @@ Se estudiarán diferentes técnicas de ataque y su impacto:
 - **Rainbows tables y precomputación:**  
   Efectividad de sal y pepper como mitigación.
 
-- **Ataques a gestión de secretos:**  
-  Explotación de configuraciones erróneas (permisos laxos, falta de rotación).
 
 
 ---
