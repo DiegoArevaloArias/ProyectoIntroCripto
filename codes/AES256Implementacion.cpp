@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "pbkdf2.h"
+#include <cstring>
 
 ///Incluir el pbkdf2 de Diego
 
