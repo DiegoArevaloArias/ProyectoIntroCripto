@@ -43,27 +43,20 @@ Se estudiarán diferentes técnicas de ataque y su impacto:
 - **Ataques a gestión de secretos:**  
   Explotación de configuraciones erróneas (permisos laxos, falta de rotación).
 
- Se registrarán métricas como tiempo medio, intentos por segundo y tasa de éxito.
 
 ---
 
 ##  Resultados Esperados / Entregables
 
 - Implementaciones de los esquemas de manejo de contraseñas.
-- Informe experimental y explicativo con métricas:
-  - Tiempos de cracking por algoritmo
-  - Comparativa coste/seguridad
-  - Buenas y malas configuraciones
-
+- Informe experimental y explicativo 
 ---
 
 ##  Objetivos
 
-- Identificar requisitos para contraseñas y gestión de claves seguras.
 - Estudiar y comparar métodos industriales de almacenamiento y gestión.
 - Implementar y documentar prototipos para analizar complejidad y seguridad.
 - Diseñar ataques para estimar tiempos de cracking con diferentes parámetros.
-- Proponer recomendaciones prácticas para la creación y gestión de contraseñas.
 
 ---
 
