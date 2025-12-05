@@ -99,7 +99,15 @@ Ejecutar:
 output/main.exe
 ```
 
-  
+CompilarSimulacionLastPass: 
 
+```
+g++ -std=c++17 SimulacionLastPass.cpp pbkdf2.cpp util.cpp -lcrypto -o simulacion
+```
+Ejecutar:
+
+```
+.\simulacion.exe
+```
 
 ---

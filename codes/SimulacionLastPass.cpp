@@ -111,14 +111,14 @@ public:
     void mostrarVault(){
         cout << "\n--- Vault ("<<username<<") ---\n";
         for (auto &i : vault){
-            cout << i.first <<" → "<< AES256Desencriptar(i.second, masterKey) << endl;
+            cout << i.first <<" : "<< AES256Desencriptar(i.second, masterKey) << endl;
         }
     }
 
     void mostrarVaultEncriptada(){
         cout << "\n--- Vault Encriptada ("<<username<<") ---\n";
         for (auto &i : vault){
-            cout << i.first << " → ";
+            cout << i.first << " : ";
             for (unsigned char c : i.second)
                 cout << std::hex << setw(2) << setfill('0') << (int)c;
             cout << endl;
@@ -131,11 +131,23 @@ int main(){
     Servidor server;
     Usuario cliente;
 
-    cliente.registrarEnServidor(server, "ramiro", "Ramiro", "r@correo.com", "SuperClave123");
+    cliente.registrarEnServidor(server, "CarlosUser", "Carlos", "r@correo.com", "SuperClaveSuperSegura123456789");
     cliente.iniciarSesion(server, "SuperClave123");
 
-    cliente.guardarPassword("Facebook", "FacePASS123");
-    cliente.guardarPassword("Gmail", "GmailPASS123");
+    cliente.guardarPassword("Instagram", "Inst4gram!2024");
+    cliente.guardarPassword("Twitter", "Xtwitt3r#Pass");
+    cliente.guardarPassword("TikTok", "T1kTok_P455w0rd");
+
+    cliente.guardarPassword("Google Drive", "Goog13-Dr!ve-2024");
+    cliente.guardarPassword("PayPal", "P4yP4l$ecure!");
+    cliente.guardarPassword("BBVA", "BBV4-S3gur0-98");
+
+    cliente.guardarPassword("Amazon", "Amaz0n2024_Pass");
+    cliente.guardarPassword("MercadoLibre", "M3rcad0L!brePass");
+    cliente.guardarPassword("Netflix", "N3tfl1x-H0g4r");
+    cliente.guardarPassword("Spotify", "Sp0t1fy_Premium!");
+    cliente.guardarPassword("Steam", "St3@mGamer2024");
+
 
     cliente.subirVault(server);
 

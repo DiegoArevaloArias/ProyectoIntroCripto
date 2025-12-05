@@ -5,3 +5,13 @@ g++ -std=c++17 -O2 main.cpp pbkdf2.cpp AES256Implementacion.cpp -o output/main.e
 Ejecutar:
 
 output/main.exe
+
+
+CompilarSimulacionLastPass: 
+
+g++ -std=c++17 SimulacionLastPass.cpp pbkdf2.cpp util.cpp -lcrypto -o simulacion
+
+Ejecutar:
+
+.\simulacion.exe
+
